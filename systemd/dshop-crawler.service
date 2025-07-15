@@ -1,0 +1,12 @@
+[Unit]
+Description=Supervisor for dshop_crawler
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/supervisord -n -c /root/dshop_crawler/supervisord.conf
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
