@@ -1,5 +1,5 @@
 [Unit]
-Description=Supervisor for dshop_crawler
+Description=Supervisor for dshop-crawler
 After=network.target
 
 [Service]

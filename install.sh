@@ -1,36 +1,38 @@
 #!/bin/bash
-
 set -e
 
-echo "🔧 Installing dshop-crawler..."
+INSTALL_DIR="/root/dshop_crawler"
+SERVICE_NAME="dshop-crawler"
 
-# supervisord が存在するかチェック
+# supervisordの存在確認
 if ! command -v supervisord >/dev/null 2>&1; then
-  echo "❌ supervisord が見つかりません。インストールしてください。"
-  echo "  例: sudo apt update && sudo apt install supervisor"
-  exit 1
+    echo "Error: supervisord is not installed. Install it first (e.g., apt install supervisor)."
+    exit 1
 fi
 
-# コピー先のパス（固定）
-TARGET_DIR=/root/dshop_crawler
+echo "[INFO] Copying files to ${INSTALL_DIR} ..."
+sudo rm -rf "$INSTALL_DIR"
+sudo mkdir -p "$INSTALL_DIR"
+sudo cp -r . "$INSTALL_DIR"
 
-# 既存削除（任意）
-rm -rf "$TARGET_DIR"
-mkdir -p "$TARGET_DIR/logs"
+echo "[INFO] Creating logs directory ..."
+sudo mkdir -p "$INSTALL_DIR/logs"
 
-# ファイルコピー
-cp -r crawler "$TARGET_DIR/"
-cp supervisord.conf "$TARGET_DIR/"
-cp -r logs "$TARGET_DIR/" || true
+echo "[INFO] Creating Python venv ..."
+sudo python3 -m venv "$INSTALL_DIR/.venv"
+sudo "$INSTALL_DIR/.venv/bin/pip" install -U pip
+sudo "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
-# systemdサービスファイル配置
-cp systemd/dshop-crawler.service /etc/systemd/system/
+echo "[INFO] Generating supervisord.conf ..."
+sudo envsubst < "$INSTALL_DIR/templates/supervisord.conf.template" > "$INSTALL_DIR/supervisord.conf"
 
-# systemd 再読込と起動
-systemctl daemon-reexec
-systemctl daemon-reload
-systemctl enable dshop-crawler
-systemctl restart dshop-crawler
+echo "[INFO] Generating systemd service file ..."
+sudo envsubst < "$INSTALL_DIR/templates/dshop-crawler.service.template" > "/etc/systemd/system/${SERVICE_NAME}.service"
 
-echo "✅ dshop-crawler installed and started! end check status of the service."
-systemctl status dshop-crawler
+echo "[INFO] Reloading systemd and starting service ..."
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable "$SERVICE_NAME"
+sudo systemctl restart "$SERVICE_NAME"
+
+echo "[OK] Installed and started $SERVICE_NAME"
