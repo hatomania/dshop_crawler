@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -7,7 +7,9 @@ class Dshop(Base):
     __tablename__ = "dshops"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    index = Column(Integer, nullable=False)
+    index = Column(Integer, nullable=False, unique=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     url = Column(String(512), nullable=False)
     status = Column(Integer, nullable=False)
     responsed_code = Column(Integer, nullable=False)

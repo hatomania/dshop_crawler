@@ -4,7 +4,7 @@ pidfile=/root/dshop_crawler/logs/supervisord.pid
 #user=root
 
 [program:dshop-crawler]
-command=/root/dshop_crawler/.venv/bin/python3 crawler/crawler.py
+command=/root/dshop_crawler/.venv/bin/python3 -m crawler.crawler
 directory=/root/dshop_crawler
 autostart=true
 autorestart=true

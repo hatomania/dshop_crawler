@@ -7,11 +7,7 @@ from alembic import context
 
 from models.dshop import Base
 
-import os
-from dotenv import load_dotenv
 from config.settings import settings
-
-load_dotenv()
 DB_SERVER=settings.DB_SERVER
 DB_PORT=settings.DB_PORT
 DB_USERNAME=settings.DB_USERNAME

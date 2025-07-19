@@ -1,9 +1,10 @@
 import httpx
-import os
 import time
 import csv
+import signal
 from pathlib import Path
 from config.settings import settings
+from crawler.save_dshop import save_dshop_record, save_dshop_record_finally
 
 BASE_URL = settings.BASE_URL
 SAVE_ROOT = Path("downloaded_pages")
@@ -12,6 +13,16 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 }
 TIMEOUT = 10.0
+
+# 安全に終了するためのシグナルハンドラ
+terminate_requested = False
+def handle_sigint(signum, frame):
+    global terminate_requested
+    print("\n[!] 終了要求を受け取りました。安全にシャットダウン中...")
+    terminate_requested = True
+
+signal.signal(signal.SIGINT, handle_sigint)
+signal.signal(signal.SIGTERM, handle_sigint)
 
 def ensure_dir_exists(path: Path):
     if not path.exists():
@@ -31,11 +42,33 @@ def append_etag_record(shop_id: int, etag: str, filepath: Path):
 def crawl():
     with httpx.Client(http2=True, timeout=TIMEOUT, headers=HEADERS) as client:
         for shop_id in range(0, 10_000_000):
+            time.sleep(1)
+            if terminate_requested == True:
+                save_dshop_record_finally()
+                break
+
             url = BASE_URL.format(shop_id)
             try:
                 response = client.get(url)
+
                 if response.status_code != 200:
                     print(f"[SKIP] {shop_id:07d} → Status {response.status_code}")
+
+                    # save to the database
+                    save_dshop_record({
+                        "index": shop_id,
+                        "url": url,
+                        "status": 1,
+                        "responsed_code": response.status_code,
+                        "etag": None,
+                        "shop_name": None,
+                        "reception_time": None,
+                        "holidays": None,
+                        "address": None,
+                        "delivery_person": None,
+                        "note": None,
+                    })
+
                     continue
 
                 # 保存ディレクトリの計算
@@ -51,6 +84,21 @@ def crawl():
                 etag = response.headers.get("etag", "")
                 append_etag_record(shop_id, etag, save_path)
 
+                # save to the database
+                save_dshop_record({
+                    "index": shop_id,
+                    "url": url,
+                    "status": 2,
+                    "responsed_code": response.status_code,
+                    "etag": etag,
+                    "shop_name": None,
+                    "reception_time": None,
+                    "holidays": None,
+                    "address": None,
+                    "delivery_person": None,
+                    "note": None,
+                })
+
                 print(f"[OK]   {shop_id:07d} → Saved: {save_path}")
             except httpx.ReadTimeout:
                 print(f"[ERROR] {shop_id:07d} → Read Timeout")
@@ -58,9 +106,7 @@ def crawl():
                 print(f"[ERROR] {shop_id:07d} → {e}")
             except Exception as e:
                 print(f"[FATAL] {shop_id:07d} → {e}")
-            
-            time.sleep(1)
-
+        
 if __name__ == "__main__":
     ensure_dir_exists(SAVE_ROOT)
     crawl()
