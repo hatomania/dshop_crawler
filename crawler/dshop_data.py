@@ -27,6 +27,9 @@ class DShopData:
             d["etags"] = None
         self.data_list.append(data)
 
+    def len(self):
+        return len(self.data_list)
+
     @staticmethod
     def get_max_index():
         session = SessionLocal()

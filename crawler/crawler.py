@@ -40,6 +40,9 @@ def append_etag_record(shop_id: int, etag: str, filepath: Path):
             writer.writerow(["shop_id", "etag", "filepath"])
         writer.writerow([f"{shop_id:07d}", etag, str(filepath)])
 
+def is_flush_timing() -> bool:
+    return DShopData().len() >= 10
+
 def main():
     ensure_dir_exists(SAVE_ROOT)
     crawl(DShopData.get_max_index() + 1)
@@ -52,6 +55,8 @@ def crawl(start_index: int):
                 if terminate_requested == True:
                     dshop_data.flush()
                     break
+                if is_flush_timing():
+                    dshop_data.flush()
 
                 url = BASE_URL.format(shop_id)
                 try:
