@@ -23,8 +23,8 @@ class DShopData:
             "delivery_person": None,
             "note": None,
         }
-        if "etags" not in d:
-            d["etags"] = None
+        if "etag" not in d:
+            d["etag"] = None
         self.data_list.append(data)
 
     def len(self):
