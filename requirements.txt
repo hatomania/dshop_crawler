@@ -2,3 +2,7 @@ python-dotenv
 requests
 httpx
 h2
+alembic
+sqlalchemy
+#psycopg2 ; needed this command: sudo apt install libpq-dev
+psycopg2-binary
