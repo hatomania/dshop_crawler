@@ -11,6 +11,7 @@ class Dshop(Base):
     url = Column(String(512), nullable=False)
     status = Column(Integer, nullable=False)
     responsed_code = Column(Integer, nullable=False)
+    etag = Column(String(255), nullable=True)
     shop_name = Column(String(255), nullable=True)
     reception_time = Column(String(255), nullable=True)
     holidays = Column(String(255), nullable=True)
