@@ -10,6 +10,11 @@ if ! command -v supervisord >/dev/null 2>&1; then
     exit 1
 fi
 
+if [ ! -f ".env" ]; then
+  echo "Error: .env file not found. Please rename or copy .env.template to .env and rewrite the contents appropriately." >&2
+  exit 1
+fi
+
 echo "[INFO] Copying files to ${INSTALL_DIR} ..."
 sudo rm -rf "$INSTALL_DIR"
 sudo mkdir -p "$INSTALL_DIR"
