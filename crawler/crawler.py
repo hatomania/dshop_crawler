@@ -5,6 +5,7 @@ import signal
 from pathlib import Path
 from config.settings import settings
 from crawler.save_dshop import save_dshop_record, save_dshop_record_finally
+from crawler.dshop_data import DShopData
 
 BASE_URL = settings.BASE_URL
 SAVE_ROOT = Path("downloaded_pages")
@@ -39,74 +40,65 @@ def append_etag_record(shop_id: int, etag: str, filepath: Path):
             writer.writerow(["shop_id", "etag", "filepath"])
         writer.writerow([f"{shop_id:07d}", etag, str(filepath)])
 
-def crawl():
+def main():
+    ensure_dir_exists(SAVE_ROOT)
+    crawl(DShopData.get_max_index() + 1)
+
+def crawl(start_index: int):
     with httpx.Client(http2=True, timeout=TIMEOUT, headers=HEADERS) as client:
-        for shop_id in range(0, 10_000_000):
-            time.sleep(1)
-            if terminate_requested == True:
-                save_dshop_record_finally()
-                break
+        with DShopData() as dshop_data:
+            for shop_id in range(start_index, 10_000_000):
+                time.sleep(1)
+                if terminate_requested == True:
+                    dshop_data.flush()
+                    break
 
-            url = BASE_URL.format(shop_id)
-            try:
-                response = client.get(url)
+                url = BASE_URL.format(shop_id)
+                try:
+                    response = client.get(url)
 
-                if response.status_code != 200:
-                    print(f"[SKIP] {shop_id:07d} → Status {response.status_code}")
+                    if response.status_code != 200:
+                        print(f"[SKIP] {shop_id:07d} → Status {response.status_code}")
+
+                        # save to the database
+                        dshop_data.push({
+                            "index": shop_id,
+                            "url": url,
+                            "status": 1,
+                            "responsed_code": response.status_code,
+                        })
+
+                        continue
+
+                    # 保存ディレクトリの計算
+                    dir_prefix = (shop_id // 1000) * 1000  # 例: 351875 → 351000
+                    save_dir = SAVE_ROOT / f"{dir_prefix:06d}"
+                    ensure_dir_exists(save_dir)
+
+                    # HTML保存
+                    save_path = save_dir / f"{shop_id:07d}.html"
+                    save_html(response.text, save_path)
+
+                    # ETag取得
+                    etag = response.headers.get("etag", "")
+                    #append_etag_record(shop_id, etag, save_path)
 
                     # save to the database
-                    save_dshop_record({
+                    dshop_data.push({
                         "index": shop_id,
                         "url": url,
-                        "status": 1,
+                        "status": 2,
                         "responsed_code": response.status_code,
-                        "etag": None,
-                        "shop_name": None,
-                        "reception_time": None,
-                        "holidays": None,
-                        "address": None,
-                        "delivery_person": None,
-                        "note": None,
+                        "etag": etag,
                     })
 
-                    continue
-
-                # 保存ディレクトリの計算
-                dir_prefix = (shop_id // 1000) * 1000  # 例: 351875 → 351000
-                save_dir = SAVE_ROOT / f"{dir_prefix:06d}"
-                ensure_dir_exists(save_dir)
-
-                # HTML保存
-                save_path = save_dir / f"{shop_id:07d}.html"
-                save_html(response.text, save_path)
-
-                # ETag取得
-                etag = response.headers.get("etag", "")
-                append_etag_record(shop_id, etag, save_path)
-
-                # save to the database
-                save_dshop_record({
-                    "index": shop_id,
-                    "url": url,
-                    "status": 2,
-                    "responsed_code": response.status_code,
-                    "etag": etag,
-                    "shop_name": None,
-                    "reception_time": None,
-                    "holidays": None,
-                    "address": None,
-                    "delivery_person": None,
-                    "note": None,
-                })
-
-                print(f"[OK]   {shop_id:07d} → Saved: {save_path}")
-            except httpx.ReadTimeout:
-                print(f"[ERROR] {shop_id:07d} → Read Timeout")
-            except httpx.RequestError as e:
-                print(f"[ERROR] {shop_id:07d} → {e}")
-            except Exception as e:
-                print(f"[FATAL] {shop_id:07d} → {e}")
+                    print(f"[OK]   {shop_id:07d} → Saved: {save_path}")
+                except httpx.ReadTimeout:
+                    print(f"[ERROR] {shop_id:07d} → Read Timeout")
+                except httpx.RequestError as e:
+                    print(f"[ERROR] {shop_id:07d} → {e}")
+                except Exception as e:
+                    print(f"[FATAL] {shop_id:07d} → {e}")
         
 if __name__ == "__main__":
-    ensure_dir_exists(SAVE_ROOT)
-    crawl()
+    main()
